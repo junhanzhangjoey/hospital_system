@@ -29,6 +29,14 @@ def available_slots(doctor: str):
 
 def schedule_slot(doctor: str, time_slot: str, patient_hash: str, illness: str):
     appointments = load_appointments()
+    for slots in appointments.values():
+        for slot in slots:
+            if slot["patient_hash"] == patient_hash:
+                return {
+                    "status": "ok",
+                    "success": False,
+                    "message": "The patient already has an appointment.",
+                }
     for slot in appointments.get(doctor, []):
         if slot["time"] != time_slot:
             continue
@@ -104,6 +112,17 @@ def get_patient_illness(patient_hash: str, doctor: str):
                 "time": slot["time"],
             }
     return {"status": "ok", "found": False}
+
+
+def complete_appointment(patient_hash: str, doctor: str):
+    appointments = load_appointments()
+    for slot in appointments.get(doctor, []):
+        if slot["patient_hash"] == patient_hash:
+            slot["patient_hash"] = ""
+            slot["illness"] = ""
+            save_appointments(appointments)
+            return {"status": "ok", "success": True, "time": slot["time"]}
+    return {"status": "ok", "success": False}
 
 
 def main() -> None:
@@ -227,6 +246,21 @@ def main() -> None:
                         f"{hash_suffix(request['patient_hash'])}."
                     )
                 send_udp_json(sock, patient_illness_result, address)
+            elif action == "complete_appointment":
+                print(
+                    f"Appointment Server has received a request to complete the appointment for "
+                    f"user with hash suffix {hash_suffix(request['patient_hash'])} with "
+                    f"{request['doctor']}."
+                )
+                complete_result = complete_appointment(
+                    request["patient_hash"],
+                    request["doctor"],
+                )
+                if complete_result["success"]:
+                    print("The appointment has been cleared after prescription issuance.")
+                else:
+                    print("The appointment could not be cleared because no matching slot was found.")
+                send_udp_json(sock, complete_result, address)
             else:
                 send_udp_json(sock, {"status": "error", "message": "Unknown action."}, address)
 

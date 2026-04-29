@@ -250,6 +250,21 @@ def handle_doctor_command(request):
             f"Hospital server has received the response from the prescription server using "
             f"UDP over port {HOSPITAL_UDP_PORT}."
         )
+        if result.get("success"):
+            print("Hospital Server has sent a request to clear the completed appointment.")
+            completion_result = send_udp_message(
+                APPOINTMENT_UDP_PORT,
+                {
+                    "action": "complete_appointment",
+                    "doctor": doctor,
+                    "patient_hash": request["patient_hash"],
+                },
+            )
+            print(
+                f"Hospital Server has received the appointment completion response from "
+                f"Appointment Server using UDP over port {HOSPITAL_UDP_PORT}."
+            )
+            result["appointment_cleared"] = completion_result.get("success", False)
         print("The hospital server has sent the response to the client.")
         result["treatment"] = treatment
         return result
